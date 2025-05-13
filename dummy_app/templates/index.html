@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Test App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #4285f4;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .user-info {
+            margin-top: 20px;
+            background-color: #e9f7fe;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 5px solid #4285f4;
+        }
+        pre {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>OAuth Test App</h1>
+    
+    <div class="container">
+        <h2>Test KeyCloak OAuth with Google</h2>
+        
+        {% if user %}
+            <div class="user-info">
+                <h3>You are logged in!</h3>
+                <p><strong>Name:</strong> {{ user.name }}</p>
+                <p><strong>Email:</strong> {{ user.email }}</p>
+                <p><strong>Subject:</strong> {{ user.sub }}</p>
+                
+                <h4>Full User Info:</h4>
+                <pre>{{ user_json }}</pre>
+                
+                <a href="/logout" class="btn">Logout</a>
+            </div>
+        {% else %}
+            <p>Click the button below to test the OAuth flow with Google through KeyCloak:</p>
+            <a href="/login" class="btn">Login with Google</a>
+            
+            {% if error %}
+                <div style="color: red; margin-top: 20px;">
+                    <h3>Error:</h3>
+                    <p>{{ error }}</p>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</body>
+</html>

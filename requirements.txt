@@ -1,0 +1,12 @@
+# FastAPI and OAuth Broker Dependencies
+fastapi
+uvicorn
+python-keycloak<=2.5.0
+httpx
+pydantic
+python-dotenv
+setuptools
+requests-toolbelt<0.10.0
+urllib3<2.0.0
+jinja2
+itsdangerous
