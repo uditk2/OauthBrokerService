@@ -1,7 +1,7 @@
 # FastAPI and OAuth Broker Dependencies
 fastapi
 uvicorn
-python-keycloak<=2.5.0
+python-keycloak
 httpx
 pydantic
 python-dotenv

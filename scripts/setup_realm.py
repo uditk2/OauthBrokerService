@@ -7,6 +7,7 @@ import sys
 import time
 from dotenv import load_dotenv
 from keycloak import KeycloakAdmin
+import json
 
 # Load environment variables
 load_dotenv()
@@ -90,43 +91,35 @@ def create_realm(keycloak_admin):
     print(f"Created realm '{KEYCLOAK_REALM}'")
 
 def setup_google_identity_provider(keycloak_admin):
-    """Set up Google as an identity provider"""
+    """Set up Google as an identity provider for Keycloak v26"""
     keycloak_admin.realm_name = KEYCLOAK_REALM
-    
-    # Calculate the redirect URI that Keycloak will use for Google callbacks
+
     keycloak_base = KEYCLOAK_URL.rstrip("/")
-    # Determine the correct format based on Keycloak version
-    # For Keycloak ≥17, use modern format without "/auth"
-    # For Keycloak <17, use legacy format with "/auth"
-    has_auth_in_path = "/auth" in keycloak_base
-    if has_auth_in_path:
-        # Legacy Keycloak with /auth in the path
-        redirect_uri = f"{keycloak_base}/realms/{KEYCLOAK_REALM}/broker/google/endpoint"
-    else:
-        # Modern Keycloak without /auth in the path
-        redirect_uri = f"{keycloak_base}/realms/{KEYCLOAK_REALM}/broker/google/endpoint"
-    
+
+    # Correct URL without /auth for Keycloak ≥17
+    redirect_uri = f"{keycloak_base}/realms/{KEYCLOAK_REALM}/broker/google/endpoint"
+
     print("\n=== IMPORTANT: GOOGLE OAUTH CONFIGURATION ===")
     print("Use this redirect URI in your Google OAuth client:")
     print(f"Redirect URI: {redirect_uri}")
-    print("===================================================\n")
-    
+    print("=============================================\n")
+
+    connection = keycloak_admin.connection
+    providers_url = f"{keycloak_admin.server_url}/admin/realms/{KEYCLOAK_REALM}/identity-provider/instances"
+
+    # Check if Google provider already exists
     try:
-        # Check if Google provider already exists
-        try:
-            # Try modern method name first
-            providers = keycloak_admin.get_idps()
-        except AttributeError:
-            # Fall back to traditional method name
-            providers = keycloak_admin.get_identity_providers()
-            
-        if any(provider.get('alias') == 'google' for provider in providers):
-            print("Google identity provider already exists.")
-            return
+        providers_response = connection.raw_get(providers_url)
+        if providers_response.status_code == 200:
+            providers = providers_response.json()
+            if any(provider.get('alias') == 'google' for provider in providers):
+                print("Google identity provider already exists.")
+                return
+        else:
+            print(f"Could not fetch existing providers. Status: {providers_response.status_code}, Response: {providers_response.text}")
     except Exception as e:
-        print(f"Error checking identity providers: {e}")
-        print("Will attempt to create Google provider anyway.")
-    
+        print("Exception occurred while fetching existing identity providers.")
+
     google_provider = {
         "alias": "google",
         "displayName": "Google",
@@ -142,30 +135,37 @@ def setup_google_identity_provider(keycloak_admin):
         "config": {
             "clientId": GOOGLE_CLIENT_ID,
             "clientSecret": GOOGLE_CLIENT_SECRET,
-            "useJwksUrl": True,
+            "useJwksUrl": "true",
             "defaultScope": "openid email profile",
             "guiOrder": "1",
-            # Add these important Google-specific settings
-            "hostedDomain": "",  # Leave empty to allow any Google account
+            "hostedDomain": "",
             "userIp": "false",
-            "hibernateIdpPersistenceId": "",
             "backchannelSupported": "true"
         }
     }
-    
+
+    # Ensure all config values are properly formatted as strings
+    google_provider["config"] = {
+        k: str(v).lower() if isinstance(v, bool) else str(v)
+        for k, v in google_provider["config"].items()
+    }
+
+    # Create identity provider
     try:
-        # Try creating the provider with proper error handling
-        try:
-            # Try modern method name first
-            result = keycloak_admin.create_idp("google", google_provider)
-        except (AttributeError, TypeError):
-            # Fall back to traditional method name with different parameters
-            result = keycloak_admin.create_identity_provider(provider_id="google", provider=google_provider)
-            
-        print("Google identity provider created successfully.")
+        response = connection.raw_post(
+            providers_url,
+            data=json.dumps(google_provider),
+            headers={"Content-Type": "application/json"}
+        )
+
+        if response.status_code in [200, 201, 204]:
+            print("Google identity provider created successfully.")
+        else:
+            print(f"Failed to create provider. Status: {response.status_code}, Response: {response.text}")
+            print("Payload sent to Keycloak:\n%s", json.dumps(google_provider, indent=2))
+
     except Exception as e:
-        print(f"Error creating Google identity provider: {e}")
-        print("Detailed error information:", str(e))
+        print("Exception occurred when creating Google identity provider.")
 
 def main():
     """Main function to set up KeyCloak realm and Google identity provider"""

@@ -1,26 +1,59 @@
 version: '3'
 
 services:
+  postgres:
+    image: postgres:15
+    container_name: keycloak_postgres
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=${KC_DB_USERNAME}
+      - POSTGRES_PASSWORD=${KC_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - keycloak-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KC_DB_USERNAME} -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   keycloak:
     image: quay.io/keycloak/keycloak:21.1.1
     container_name: keycloak
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
-      - KC_DB=dev-file
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
+      - KC_DB_USERNAME=${KC_DB_USERNAME}
+      - KC_DB_PASSWORD=${KC_DB_PASSWORD}
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME=localhost
+      - KC_HOSTNAME_PORT=8080
+      - KC_HOSTNAME_STRICT=false
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME_STRICT_HTTPS=false 
+      - KC_HTTPS_ENABLED=false
+      - KC_PROXY=none # change it to edge when using a reverse proxy like Traefik or Nginx
     ports:
       - "8080:8080"
     volumes:
       - keycloak_data:/opt/keycloak/data
     command: 
-      - start-dev
+      - start
     networks:
       - keycloak-network
+    depends_on:
+      - postgres
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
-      interval: 10s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 5
+      start_period: 60s
 
 networks:
   keycloak-network:
@@ -28,3 +61,4 @@ networks:
 
 volumes:
   keycloak_data:
+  postgres_data:

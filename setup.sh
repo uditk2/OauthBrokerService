@@ -8,11 +8,18 @@ if [ ! -f .env ]; then
     echo "Please edit .env file with your Google OAuth credentials"
     exit 1
 fi
+echo "Shutting down any existing KeyCloak containers..."
 
+docker compose -f docker-compose-prod.yml --env-file .env down
+
+echo "Cleaning up system."
+docker system prune -f
 # Start KeyCloak
 echo "Starting KeyCloak..."
-docker-compose up -d
+docker compose -f docker-compose-prod.yml --env-file .env up --build -d
 
+virtualenv venv
+source venv/bin/activate
 # Install Python dependencies
 echo "Installing Python dependencies..."
 pip install -r requirements.txt
