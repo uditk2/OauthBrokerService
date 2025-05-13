@@ -29,8 +29,7 @@ This project sets up KeyCloak as an OAuth broker for Google authentication. It i
  ```
  2. Start the dummy application:
  ```
- cd dummy_app
- python main.py
+ python dummy_app/main.py
  ```
  3. Open your browser and navigate to `http://localhost:8090`
  4. Click the "Login with Google" button to test the OAuth flow
