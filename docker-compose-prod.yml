@@ -1,0 +1,65 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=${KC_DB_USERNAME}
+      - POSTGRES_PASSWORD=${KC_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - keycloak-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KC_DB_USERNAME} -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1.1
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
+      - KC_DB_USERNAME=${KC_DB_USERNAME}
+      - KC_DB_PASSWORD=${KC_DB_PASSWORD}
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY_ADDRESS_FORWARDING=true # Set to true if using a reverse proxy
+      - KC_HOSTNAME=oauthbroker.synergiqai.com
+      - KC_HOSTNAME_STRICT=false
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME_STRICT_HTTPS=false 
+      - KC_HTTPS_ENABLED=false
+      - KC_PROXY=edge # change it to edge when using a reverse proxy like Traefik or Nginx
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    command: 
+      - start
+    networks:
+      - keycloak-network
+      - traefik-public
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      # HTTPS Router (port 443)
+      - "traefik.http.routers.oathbroker.rule=Host(`oauthbroker.synergiqai.com`)"
+      - "traefik.http.routers.oathbroker.entrypoints=websecure"
+      - "traefik.http.routers.oathbroker.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.oathbroker.service=oauthbroker-service"
+      - "traefik.http.services.oauthbroker-service.loadbalancer.server.port=8080"
+networks:
+  keycloak-network:
+    driver: bridge
+  traefik-public:
+    external: true
+
+volumes:
+  keycloak_data:
+  postgres_data:

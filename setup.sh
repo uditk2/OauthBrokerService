@@ -18,7 +18,22 @@ docker system prune -f
 echo "Starting KeyCloak..."
 docker compose -f docker-compose-prod.yml --env-file .env up --build -d
 
-virtualenv venv
+# Create virtual environment
+echo "Creating Python virtual environment..."
+# Try to create virtual environment
+if ! python3 -m venv venv 2>/dev/null; then
+    echo "Failed to create virtual environment. Python venv package may be missing."
+    echo "Installing python3-venv package..."
+    sudo apt install python3-venv -y
+    
+    # Try creating the venv again
+    if ! python3 -m venv venv; then
+        echo "Failed to create virtual environment even after installing python3-venv"
+        exit 1
+    fi
+fi
+
+# Activate the virtual environment
 source venv/bin/activate
 # Install Python dependencies
 echo "Installing Python dependencies..."
